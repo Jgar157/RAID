@@ -1,0 +1,10 @@
+python3 fsmain.py -bs 256 -nb 256 -is 32 -ni 32
+load hw1_f2023_dump_BS_256_NB_256_IS_32_NI_32.dump
+
+# Server
+python3 fsmain.py -bs 256 -nb 256 -is 32 -ni 32 -port 9999 -cid 1
+python3 blockserver.py -nb 256 -bs 256 -port 9999
+
+
+
+docker run -it --rm --name pocsd --mount type=bind,source="$(pwd)",target=/tmp rjofig/pocsdgrading 4

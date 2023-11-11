@@ -1,0 +1,143 @@
+##########################################
+hw4_2023_test1.out
+##########################################
+12,14d11
+< CACHE_INVALIDATED
+< CACHE_WRITE_THROUGH 254
+< CACHE_MISS 4
+20c17,18
+< CACHE_MISS 6
+---
+> CACHE_HIT 4
+> CACHE_HIT 6
+33d30
+< CACHE_WRITE_THROUGH 254
+##########################################
+hw4_2023_test2.out
+##########################################
+8a9
+> SERVER_TIMED_OUT
+12,15d12
+< SERVER_TIMED_OUT
+< CACHE_INVALIDATED
+< CACHE_WRITE_THROUGH 254
+< CACHE_MISS 4
+21c18,19
+< CACHE_MISS 6
+---
+> CACHE_HIT 4
+> CACHE_HIT 6
+28a27
+> SERVER_TIMED_OUT
+33d31
+< SERVER_TIMED_OUT
+35d32
+< CACHE_WRITE_THROUGH 254
+##########################################
+hw4_2023_test3.out
+##########################################
+##########################################
+hw4_2023_test4.out
+##########################################
+##########################################
+hw4_2023_test5.out
+##########################################
+23a24
+> SERVER_TIMED_OUT
+29a31
+> SERVER_TIMED_OUT
+53a56
+> SERVER_TIMED_OUT
+58d60
+< SERVER_TIMED_OUT
+##########################################
+hw4_2023_test6.out
+##########################################
+46d45
+< CACHE_WRITE_THROUGH 254
+118d116
+< CACHE_WRITE_THROUGH 254
+137d134
+< CACHE_WRITE_THROUGH 254
+##########################################
+hw4_2023_test7.out
+##########################################
+46d45
+< CACHE_WRITE_THROUGH 254
+91a91
+> CACHE_HIT 4
+93a94,95
+> CACHE_HIT 7
+> CACHE_WRITE_THROUGH 7
+94a97
+> CACHE_WRITE_THROUGH 4
+98,99d100
+< CACHE_HIT 7
+< CACHE_WRITE_THROUGH 7
+117d117
+< CACHE_HIT 4
+171d170
+< CACHE_WRITE_THROUGH 254
+223d221
+< CACHE_WRITE_THROUGH 254
+242d239
+< CACHE_WRITE_THROUGH 254
+301d297
+< CACHE_WRITE_THROUGH 254
+309,311d304
+< CACHE_HIT 7
+< CACHE_HIT 4
+< CACHE_HIT 4
+312a306
+> CACHE_HIT 7
+324,325d317
+< CACHE_MISS 10
+< CACHE_WRITE_THROUGH 10
+331a324,327
+> CACHE_MISS 10
+> CACHE_WRITE_THROUGH 10
+> CACHE_HIT 4
+> CACHE_WRITE_THROUGH 4
+441d436
+< CACHE_WRITE_THROUGH 254
+##########################################
+hw4_2023_test8.out
+##########################################
+46d45
+< CACHE_WRITE_THROUGH 254
+91a91
+> CACHE_HIT 3
+93a94,95
+> CACHE_HIT 8
+> CACHE_WRITE_THROUGH 8
+94a97
+> CACHE_WRITE_THROUGH 3
+98,99d100
+< CACHE_HIT 8
+< CACHE_WRITE_THROUGH 8
+117d117
+< CACHE_HIT 3
+171d170
+< CACHE_WRITE_THROUGH 254
+223d221
+< CACHE_WRITE_THROUGH 254
+242d239
+< CACHE_WRITE_THROUGH 254
+301d297
+< CACHE_WRITE_THROUGH 254
+309,311d304
+< CACHE_HIT 8
+< CACHE_HIT 3
+< CACHE_HIT 3
+312a306
+> CACHE_HIT 8
+324,325d317
+< CACHE_MISS 11
+< CACHE_WRITE_THROUGH 11
+331a324,327
+> CACHE_MISS 11
+> CACHE_WRITE_THROUGH 11
+> CACHE_HIT 3
+> CACHE_WRITE_THROUGH 3
+441d436
+< CACHE_WRITE_THROUGH 254
