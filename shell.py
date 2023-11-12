@@ -11,7 +11,7 @@ from absolutepath import *
 ## This class implements an interactive shell to navigate the file system
 
 class FSShell():
-    def __init__(self, RawBlocks, FileOperationsObject, AbsolutePathObject):
+    def __init__(self, RawBlocks, FileOperationsObject, AbsolutePathObject: AbsolutePathName):
         # cwd stored the inode of the current working directory
         # we start in the root directory
         self.cwd = 0
@@ -106,7 +106,7 @@ class FSShell():
     # file operations
     # implements cd (change directory)
     def cd(self, dir):
-        i = self.AbsolutePathObject.PathNameToInodeNumber(dir, self.cwd)
+        i = self.AbsolutePathObject.GeneralPathToInodeNumber(dir, self.cwd)
         if i == -1:
             print("Error: not found\n")
             return -1
@@ -151,7 +151,7 @@ class FSShell():
 
     # implements cat (print file contents)
     def cat(self, filename):
-        i = self.AbsolutePathObject.PathNameToInodeNumber(filename, self.cwd)
+        i = self.AbsolutePathObject.GeneralPathToInodeNumber(filename, self.cwd)
         if i == -1:
             print("Error: not found\n")
             return -1
@@ -185,7 +185,8 @@ class FSShell():
 
     # implements append
     def append(self, filename, string):
-        i = self.AbsolutePathObject.PathNameToInodeNumber(filename, self.cwd)
+        print(self.AbsolutePathObject)
+        i = self.AbsolutePathObject.GeneralPathToInodeNumber(filename, self.cwd)
         if i == -1:
             print("Error: not found\n")
             return -1
@@ -213,7 +214,7 @@ class FSShell():
         except ValueError:
             print('Error: ' + count + ' not a valid Integer')
             return -1
-        i = self.AbsolutePathObject.PathNameToInodeNumber(filename, self.cwd)
+        i = self.AbsolutePathObject.GeneralPathToInodeNumber(filename, self.cwd)
         if i == -1:
             print("Error: not found\n")
             return -1
@@ -230,7 +231,7 @@ class FSShell():
 
     # implements mirror filename (mirror the contents of a file)
     def mirror(self, filename):
-        i = self.AbsolutePathObject.PathNameToInodeNumber(filename, self.cwd)
+        i = self.AbsolutePathObject.GeneralPathToInodeNumber(filename, self.cwd)
         if i == -1:
             print("Error: not found\n")
             return -1

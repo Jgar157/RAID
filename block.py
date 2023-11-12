@@ -111,6 +111,10 @@ class DiskBlocks():
                 # add to cache
                 self.blockcache[block_number] = data
             # return as bytearray
+
+            if data == "CORRUPT":
+                print("CORRUPT")
+
             return bytearray(data)
 
         logging.error('DiskBlocks::Get: Block number larger than TOTAL_NUM_BLOCKS: ' + str(block_number))

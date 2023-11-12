@@ -36,6 +36,7 @@ if __name__ == "__main__":
   ap.add_argument('-bs', '--block_size', type=int, help='an integer value')
   ap.add_argument('-port', '--port', type=int, help='an integer value')
   ap.add_argument('-delayat', '--delayat', type=int, help='an integer value')
+  ap.add_argument('-cblk', type=int, help='an integer value')
 
   args = ap.parse_args()
 
@@ -57,6 +58,11 @@ if __name__ == "__main__":
     print('Must specify port number')
     quit()
 
+  if args.cblk:
+    CBLK = args.cblk
+  else:
+    CBLK = None
+
   if args.delayat:
     delayat = args.delayat
   else:
@@ -69,8 +75,26 @@ if __name__ == "__main__":
   # Create server
   server = SimpleXMLRPCServer(("127.0.0.1", PORT), requestHandler=RequestHandler)
 
+  # Checksum
+  checksum = [0 for i in range(TOTAL_NUM_BLOCKS)]
+
+  def GetChecksum():
+    return checksum
+  
+  def calculateChecksum(block_number):
+    final_num = 0
+    block = RawBlocks.block[block_number]
+    for byte in block:
+      final_num ^= int(byte)
+    return final_num
+
   def Get(block_number):
     result = RawBlocks.block[block_number]
+
+    curr_checksum = calculateChecksum(block_number)
+    if curr_checksum != checksum[block_number]:
+      return "CORRUPT"
+    
     RawBlocks.Sleep()
     return result
 
@@ -79,13 +103,21 @@ if __name__ == "__main__":
   def Put(block_number, data):
     RawBlocks.block[block_number] = data.data
     RawBlocks.Sleep()
+    # Update checksum for this block
+    checksum[block_number] = calculateChecksum(block_number)
+
+    # If corrupt block enabled, corrupt the block
+    if CBLK is not None and block_number == CBLK:
+      RawBlocks.block[block_number] = bytearray(b'\x01') * BLOCK_SIZE
+      print("Corrupting block", block_number)
+
     return 0
 
   server.register_function(Put)
 
   def RSM(block_number):
     RSM_LOCKED = bytearray(b'\x01') * 1
-    print("RSM", block_number, RawBlocks.block[block_number])
+    # print("RSM", block_number, RawBlocks.block[block_number])
     result = RawBlocks.block[block_number]
     # RawBlocks.block[block_number] = RSM_LOCKED
     RawBlocks.block[block_number] = bytearray(RSM_LOCKED.ljust(BLOCK_SIZE,b'\x01'))
