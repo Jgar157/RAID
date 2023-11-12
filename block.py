@@ -64,15 +64,15 @@ class DiskBlocks():
                 LAST_WRITER_BLOCK = fsconfig.TOTAL_NUM_BLOCKS - 2
                 updated_block = bytearray(fsconfig.BLOCK_SIZE)
                 updated_block[0] = fsconfig.CID
-                rpcretry = True
-                while rpcretry:
-                    rpcretry = False
-                    try:
-                        self.block_server.Put(LAST_WRITER_BLOCK, updated_block)
-                    except socket.timeout:
-                        print("SERVER_TIMED_OUT")
-                        time.sleep(fsconfig.RETRY_INTERVAL)
-                        rpcretry = True
+
+                try:
+                    self.block_server.Put(LAST_WRITER_BLOCK, updated_block)
+                except:
+                    print("SERVER_TIMED_OUT")
+                    # SERVER_DISCONNECTED operation block_number
+                    print("SERVER_DISCONNECTED Put " + str(block_number))
+                    ret = -1
+
             if ret == -1:
                 logging.error('Put: Server returns error')
                 quit()
@@ -99,18 +99,13 @@ class DiskBlocks():
                 data = self.blockcache[block_number]
             else:
                 print('CACHE_MISS ' + str(block_number))
-                rpcretry = True
-                while rpcretry:
-                    rpcretry = False
-                    try:
-                        data = self.block_server.Get(block_number)
-                    except socket.timeout:
-                        print("SERVER_TIMED_OUT")
-                        time.sleep(fsconfig.RETRY_INTERVAL)
-                        rpcretry = True
-                # add to cache
-                self.blockcache[block_number] = data
-            # return as bytearray
+                try:
+                    data = self.block_server.Get(block_number)
+                    self.blockcache[block_number] = data
+                except:
+                    print("SERVER_TIMED_OUT")
+                    print("SERVER_DISCONNECTED Get " + str(block_number))
+                    return -1
 
             if data == "CORRUPT":
                 print("CORRUPT")
@@ -126,15 +121,12 @@ class DiskBlocks():
     def RSM(self, block_number):
         logging.debug('RSM: ' + str(block_number))
         if block_number in range(0, fsconfig.TOTAL_NUM_BLOCKS):
-            rpcretry = True
-            while rpcretry:
-                rpcretry = False
-                try:
-                    data = self.block_server.RSM(block_number)
-                except socket.timeout:
-                    print("SERVER_TIMED_OUT")
-                    time.sleep(fsconfig.RETRY_INTERVAL)
-                    rpcretry = True
+            try:
+                data = self.block_server.RSM(block_number)
+            except:
+                print("SERVER_TIMED_OUT")
+                print("SERVER_DISCONNECTED RSM " + str(block_number))
+                return -1
 
             return bytearray(data)
 
