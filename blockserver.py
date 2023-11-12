@@ -92,6 +92,8 @@ if __name__ == "__main__":
     result = RawBlocks.block[block_number]
 
     curr_checksum = calculateChecksum(block_number)
+    # print("Checksum for block", block_number, "is", curr_checksum)
+    # print("Checksum for block", block_number, "should be", checksum[block_number])
     if curr_checksum != checksum[block_number]:
       return "CORRUPT"
     
@@ -105,11 +107,12 @@ if __name__ == "__main__":
     RawBlocks.Sleep()
     # Update checksum for this block
     checksum[block_number] = calculateChecksum(block_number)
+    # print("Just calculated: Checksum for block", block_number, "is", checksum[block_number])
 
     # If corrupt block enabled, corrupt the block
     if CBLK is not None and block_number == CBLK:
       RawBlocks.block[block_number] = bytearray(b'\x01') * BLOCK_SIZE
-      print("Corrupting block", block_number)
+      # print("Corrupting block", block_number, "with", RawBlocks.block[block_number])
 
     return 0
 

@@ -185,7 +185,6 @@ class FSShell():
 
     # implements append
     def append(self, filename, string):
-        print(self.AbsolutePathObject)
         i = self.AbsolutePathObject.GeneralPathToInodeNumber(filename, self.cwd)
         if i == -1:
             print("Error: not found\n")

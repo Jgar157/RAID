@@ -114,6 +114,7 @@ class DiskBlocks():
 
             if data == "CORRUPT":
                 print("CORRUPT")
+                return -1
 
             return bytearray(data)
 
