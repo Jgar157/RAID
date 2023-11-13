@@ -29,6 +29,8 @@ class DiskBlocks():
             server_url = 'http://' + fsconfig.SERVER_ADDRESS + ':' + str(startingPort + server)
             self.servers.append(xmlrpc.client.ServerProxy(server_url, use_builtin_types=True))
 
+        print('Connected to servers: ' + str(self.servers))
+
         socket.setdefaulttimeout(fsconfig.SOCKET_TIMEOUT)
         self.num_servers = numServers
 
@@ -104,19 +106,23 @@ class DiskBlocks():
             if (block_number < fsconfig.TOTAL_NUM_BLOCKS-2) and (block_number in self.blockcache):
                 print('CACHE_HIT '+ str(block_number))
                 data = self.blockcache[block_number]
+
             else:
                 print('CACHE_MISS ' + str(block_number))
                 try:
                     data = server.Get(block_number)
-                    self.blockcache[block_number] = data
                 except:
                     print("SERVER_TIMED_OUT")
                     print("SERVER_DISCONNECTED Get " + str(block_number))
                     return -1
+                
+                # Only update cache if not corrupt or bad output
+                if data != "CORRUPT" and data != -1:
+                    self.blockcache[block_number] = data
 
             if data == "CORRUPT":
                 return "CORRUPT"
-
+            
             return bytearray(data)
 
         logging.error('DiskBlocks::Get: Block number larger than TOTAL_NUM_BLOCKS: ' + str(block_number))
@@ -141,16 +147,22 @@ class DiskBlocks():
 
         # Iterate over all servers
         server_read = -1
+        data = -1
         for server in self.servers:
             data = self.SingleGet(server, block_number)
             server_read = server
+
+            if data == "CORRUPT":
+                print("Server " + str(server_read) + " returned corrupt block " + str(block_number))
+                print("Recovering block " + str(block_number) + " from following servers")
+                continue
+
             if data != "CORRUPT" and data != -1:
                 break
 
         # If the block is corrupt, try to get it from the other server
         if data == "CORRUPT":
             print(data)
-            quit()
 
         else:
             # print('Success reading block ' + str(block_number) + ' from server ' + str(server_read))
