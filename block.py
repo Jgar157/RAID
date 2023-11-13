@@ -7,7 +7,7 @@ import xmlrpc.client, socket, time
 # global TOTAL_NUM_BLOCKS, BLOCK_SIZE, INODE_SIZE, MAX_NUM_INODES, MAX_FILENAME, INODE_NUMBER_DIRENTRY_SIZE
 
 class DiskBlocks():
-    def __init__(self):
+    def __init__(self, numServers=1, startingPort=8000):
 
         # initialize clientID
         if fsconfig.CID >= 0 and fsconfig.CID < fsconfig.MAX_CLIENTS:
@@ -22,16 +22,24 @@ class DiskBlocks():
         else:
             print('Must specify port number')
             quit()
-        server_url = 'http://' + fsconfig.SERVER_ADDRESS + ':' + str(PORT)
-        self.block_server = xmlrpc.client.ServerProxy(server_url, use_builtin_types=True)
+
+        # Create a list of servers based on numServers and startingPort
+        self.servers = []
+        for server in range(numServers):
+            server_url = 'http://' + fsconfig.SERVER_ADDRESS + ':' + str(startingPort + server)
+            self.servers.append(xmlrpc.client.ServerProxy(server_url, use_builtin_types=True))
+
         socket.setdefaulttimeout(fsconfig.SOCKET_TIMEOUT)
+        self.num_servers = numServers
+
         # initialize block cache empty
         self.blockcache = {}
+
 
     ## Put: interface to write a raw block of data to the block indexed by block number
     ## Blocks are padded with zeroes up to BLOCK_SIZE
 
-    def Put(self, block_number, block_data):
+    def SinglePut(self, server, block_number, block_data):
 
         logging.debug(
             'Put: block number ' + str(block_number) + ' len ' + str(len(block_data)) + '\n' + str(block_data.hex()))
@@ -46,15 +54,13 @@ class DiskBlocks():
             # commenting this out as the request now goes to the server
             # self.block[block_number] = putdata
             # call Put() method on the server; code currently quits on any server failure
-            rpcretry = True
-            while rpcretry:
-                rpcretry = False
-                try:
-                    ret = self.block_server.Put(block_number, putdata)
-                except socket.timeout:
-                    print("SERVER_TIMED_OUT")
-                    time.sleep(fsconfig.RETRY_INTERVAL)
-                    rpcretry = True
+        
+            try:
+                ret = server.Put(block_number, putdata)
+            except:
+                print("SERVER_TIMED_OUT")
+                ret = -1
+
             # update block cache
             print('CACHE_WRITE_THROUGH ' + str(block_number))
             self.blockcache[block_number] = putdata
@@ -66,7 +72,7 @@ class DiskBlocks():
                 updated_block[0] = fsconfig.CID
 
                 try:
-                    self.block_server.Put(LAST_WRITER_BLOCK, updated_block)
+                    server.Put(LAST_WRITER_BLOCK, updated_block)
                 except:
                     print("SERVER_TIMED_OUT")
                     # SERVER_DISCONNECTED operation block_number
@@ -75,7 +81,8 @@ class DiskBlocks():
 
             if ret == -1:
                 logging.error('Put: Server returns error')
-                quit()
+                return -1
+            
             return 0
         else:
             logging.error('Put: Block out of range: ' + str(block_number))
@@ -85,7 +92,7 @@ class DiskBlocks():
     ## Get: interface to read a raw block of data from block indexed by block number
     ## Equivalent to the textbook's BLOCK_NUMBER_TO_BLOCK(b)
 
-    def Get(self, block_number):
+    def SingleGet(self, server, block_number):
 
         logging.debug('Get: ' + str(block_number))
         if block_number in range(0, fsconfig.TOTAL_NUM_BLOCKS):
@@ -100,7 +107,7 @@ class DiskBlocks():
             else:
                 print('CACHE_MISS ' + str(block_number))
                 try:
-                    data = self.block_server.Get(block_number)
+                    data = server.Get(block_number)
                     self.blockcache[block_number] = data
                 except:
                     print("SERVER_TIMED_OUT")
@@ -108,25 +115,74 @@ class DiskBlocks():
                     return -1
 
             if data == "CORRUPT":
-                print("CORRUPT")
-                return -1
+                return "CORRUPT"
 
             return bytearray(data)
 
         logging.error('DiskBlocks::Get: Block number larger than TOTAL_NUM_BLOCKS: ' + str(block_number))
         quit()
 
-## RSM: read and set memory equivalent
+    def Put(self, block_number, block_data):
+        # target_server, virtual_block_number = self.SelectServer(block_number)
 
+        # Iterate over all servers
+        for server in self.servers:
+            res = self.SinglePut(server, block_number, block_data)
+        
+        else:
+            # print('Success writing block ' + str(block_number) + ' to servers')
+            pass
+
+        return 0 # Only 1 server ever fails, so this always succeeds
+        
+    # Raid-1 version
+    def Get(self, block_number):
+        # target_server, virtual_block_number = self.SelectServer(block_number)
+
+        # Iterate over all servers
+        server_read = -1
+        for server in self.servers:
+            data = self.SingleGet(server, block_number)
+            server_read = server
+            if data != "CORRUPT" and data != -1:
+                break
+
+        # If the block is corrupt, try to get it from the other server
+        if data == "CORRUPT":
+            print(data)
+            quit()
+
+        else:
+            # print('Success reading block ' + str(block_number) + ' from server ' + str(server_read))
+            pass
+
+        return data
+
+    
+    # def SelectServer(self, block_number):
+    #     target_server = block_number % self.num_servers
+    #     target_server = self.servers[target_server]
+
+    #     # The block number is floor(block_numer / num_servers)
+    #     # This is because the block number is the same for all servers until the last server
+    #     virtual_block_number = block_number // self.num_servers
+    #     print('\nSelected server ' + str(target_server) + ' for block ' + str(block_number) + ' (virtual block ' + str(virtual_block_number) + ')\n')
+    #     return target_server, virtual_block_number
+
+
+## RSM: read and set memory equivalent
+    # RSM to all servers
     def RSM(self, block_number):
         logging.debug('RSM: ' + str(block_number))
         if block_number in range(0, fsconfig.TOTAL_NUM_BLOCKS):
-            try:
-                data = self.block_server.RSM(block_number)
-            except:
-                print("SERVER_TIMED_OUT")
-                print("SERVER_DISCONNECTED RSM " + str(block_number))
-                return -1
+
+            # Iterate - Only one server should ever fail, so just one recovery is needed
+            for server in self.servers:
+                try:
+                    data = server.RSM(block_number)
+                except:
+                    print("SERVER_TIMED_OUT")
+                    print("SERVER_DISCONNECTED RSM " + str(block_number))
 
             return bytearray(data)
 
@@ -147,11 +203,14 @@ class DiskBlocks():
         self.CheckAndInvalidateCache()
         return 0
 
+    # Raid-1 version uses server 0
     def Release(self):
         logging.debug('Release')
         RSM_BLOCK = fsconfig.TOTAL_NUM_BLOCKS - 1
         # Put()s a zero-filled block to release lock
+
         self.Put(RSM_BLOCK,bytearray(fsconfig.RSM_UNLOCKED.ljust(fsconfig.BLOCK_SIZE, b'\x00')))
+
         return 0
 
     def CheckAndInvalidateCache(self):

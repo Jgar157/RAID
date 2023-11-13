@@ -29,6 +29,8 @@ if __name__ == "__main__":
     ap.add_argument('-is', '--inode_size', type=int, help='an integer value')
     ap.add_argument('-cid', '--client_id', type=int, help='an integer value')
     ap.add_argument('-port', '--port', type=int, help='an integer value')
+    ap.add_argument('-startport', '--sp', type=int, help='an integer value')
+    ap.add_argument('-ns', type=int, help='an integer value')
 
     # Other than FS args, consecutive args will be captured in by 'arg' as list
     ap.add_argument('arg', nargs='*')
@@ -43,7 +45,7 @@ if __name__ == "__main__":
     # fsconfig.PrintFSConstants()
 
     # Initialize empty file system data in raw storage
-    RawBlocks = DiskBlocks()
+    RawBlocks = DiskBlocks(numServers=args.ns, startingPort=args.sp)
     # RawBlocks.PrintBlocks("Initialized", 0, 16)
 
     # Create a FileName object and initialize the root's inode
