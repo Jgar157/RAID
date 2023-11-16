@@ -8,3 +8,18 @@ python3 blockserver.py -nb 256 -bs 256 -port 9999
 
 
 docker run -it --rm --name pocsd --mount type=bind,source="$(pwd)",target=/tmp rjofig/pocsdgrading 4
+
+
+# Final Proj Cmd
+
+## Server
+python3 blockserver.py -nb 256 -bs 256 -port 8000 -cblk 8
+python3 blockserver.py -nb 256 -bs 256 -port 8001
+
+## Client w/ cache debug
+python3 fsmain.py -bs 256 -nb 256 -is 32 -ni 32 -port 8000 -cid 1 -startport 8000 -ns 2 -cd
+python3 fsmain.py -bs 256 -nb 256 -is 32 -ni 32 -port 8000 -cid 1 -startport 8001 -ns 2 -cd
+
+## No cache debug
+python3 fsmain.py -bs 256 -nb 256 -is 32 -ni 32 -port 8000 -cid 1 -startport 8000 -ns 2
+python3 fsmain.py -bs 256 -nb 256 -is 32 -ni 32 -port 8000 -cid 2 -startport 8001 -ns 2

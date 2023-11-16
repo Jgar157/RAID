@@ -5,7 +5,7 @@ global TOTAL_NUM_BLOCKS, BLOCK_SIZE, MAX_NUM_INODES, INODE_SIZE
 global INODE_TYPE_INVALID, INODE_TYPE_FILE, INODE_TYPE_DIR, INODE_TYPE_SYM
 global INODES_PER_BLOCK, FREEBITMAP_NUM_BLOCKS, INODE_BLOCK_OFFSET, INODE_NUM_BLOCKS, MAX_INODE_BLOCK_NUMBERS, \
         MAX_FILE_SIZE, DATA_BLOCKS_OFFSET, DATA_NUM_BLOCKS, FILE_NAME_DIRENTRY_SIZE, FILE_ENTRIES_PER_DATA_BLOCK
-global CID, PORT, MAX_CLIENTS, SERVER_ADDRESS, RSM_UNLOCKED, RSM_LOCKED, SOCKET_TIMEOUT, RETRY_INTERVAL
+global CID, PORT, MAX_CLIENTS, SERVER_ADDRESS, RSM_UNLOCKED, RSM_LOCKED, SOCKET_TIMEOUT, RETRY_INTERVAL, CACHE_DEBUG
 
 # Useful variables that are derived from the above
 # Call this function to compute derived file system parameters
@@ -15,7 +15,7 @@ def ConfigureFSConstants(args):
     # Call this function with args (from command-line arguments) to configure the file system
 
     global TOTAL_NUM_BLOCKS, BLOCK_SIZE, MAX_NUM_INODES, INODE_SIZE
-    global CID, PORT, MAX_CLIENTS, SERVER_ADDRESS, RSM_UNLOCKED, RSM_LOCKED, SOCKET_TIMEOUT, RETRY_INTERVAL
+    global CID, PORT, MAX_CLIENTS, SERVER_ADDRESS, RSM_UNLOCKED, RSM_LOCKED, SOCKET_TIMEOUT, RETRY_INTERVAL, CACHE_DEBUG
     # Default values
     # Total number of blocks in raw storage
     TOTAL_NUM_BLOCKS = 256
@@ -27,6 +27,9 @@ def ConfigureFSConstants(args):
     INODE_SIZE = 16
     CID = 0
     PORT = 8000
+
+    # Cache Debug
+    CACHE_DEBUG = False
 
     # Override defaults if provided in command line arguments (args)
     if args.total_num_blocks:
@@ -41,6 +44,8 @@ def ConfigureFSConstants(args):
         CID = args.client_id
     if args.port:
         PORT = args.port
+    if args.cache_debug:
+        CACHE_DEBUG = args.cache_debug
     
     # These are constants that SHOULD NEVER BE MODIFIED
     global MAX_FILENAME, INODE_NUMBER_DIRENTRY_SIZE, FREEBITMAP_BLOCK_OFFSET, INODE_BYTES_SIZE_TYPE_REFCNT, \

@@ -64,7 +64,9 @@ class DiskBlocks():
                 ret = -1
 
             # update block cache
-            print('CACHE_WRITE_THROUGH ' + str(block_number))
+            if fsconfig.CACHE_DEBUG:
+                print('CACHE_WRITE_THROUGH ' + str(block_number))
+
             self.blockcache[block_number] = putdata
             # flag this is the last writer
             # unless this is a release - which doesn't flag last writer
@@ -104,11 +106,17 @@ class DiskBlocks():
             # call Get() method on the server
             # don't look up cache for last two blocks
             if (block_number < fsconfig.TOTAL_NUM_BLOCKS-2) and (block_number in self.blockcache):
-                print('CACHE_HIT '+ str(block_number))
+
+                if fsconfig.CACHE_DEBUG:
+                    print('CACHE_HIT '+ str(block_number))
+
                 data = self.blockcache[block_number]
 
             else:
-                print('CACHE_MISS ' + str(block_number))
+
+                if fsconfig.CACHE_DEBUG:
+                    print('CACHE_MISS ' + str(block_number))
+
                 try:
                     data = server.Get(block_number)
                 except:
@@ -230,7 +238,10 @@ class DiskBlocks():
         last_writer = self.Get(LAST_WRITER_BLOCK)
         # if ID of last writer is not self, invalidate and update
         if last_writer[0] != fsconfig.CID:
-            print("CACHE_INVALIDATED")
+
+            if fsconfig.CACHE_DEBUG:
+                print("CACHE_INVALIDATED")
+                
             self.blockcache = {}
             updated_block = bytearray(fsconfig.BLOCK_SIZE)
             updated_block[0] = fsconfig.CID

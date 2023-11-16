@@ -31,6 +31,7 @@ if __name__ == "__main__":
     ap.add_argument('-port', '--port', type=int, help='an integer value')
     ap.add_argument('-startport', '--sp', type=int, help='an integer value')
     ap.add_argument('-ns', type=int, help='an integer value')
+    ap.add_argument('-cd', '--cache_debug', action='store_true', help='a boolean value')
 
     # Other than FS args, consecutive args will be captured in by 'arg' as list
     ap.add_argument('arg', nargs='*')
