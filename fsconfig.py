@@ -27,7 +27,6 @@ def ConfigureFSConstants(args):
     INODE_SIZE = 16
     CID = 0
     PORT = 8000
-
     # Cache Debug
     CACHE_DEBUG = False
 
@@ -45,7 +44,7 @@ def ConfigureFSConstants(args):
     if args.port:
         PORT = args.port
     if args.cache_debug:
-        CACHE_DEBUG = args.cache_debug
+        CACHE_DEBUG = args.logcache
     
     # These are constants that SHOULD NEVER BE MODIFIED
     global MAX_FILENAME, INODE_NUMBER_DIRENTRY_SIZE, FREEBITMAP_BLOCK_OFFSET, INODE_BYTES_SIZE_TYPE_REFCNT, \
