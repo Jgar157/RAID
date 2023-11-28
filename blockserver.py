@@ -94,6 +94,7 @@ if __name__ == "__main__":
     curr_checksum = calculateChecksum(block_number)
     # print("Checksum for block", block_number, "is", curr_checksum)
     # print("Checksum for block", block_number, "should be", checksum[block_number])
+    print('Get block', block_number, 'with checksum', curr_checksum)
     if curr_checksum != checksum[block_number]:
       return "CORRUPT"
     
@@ -108,6 +109,7 @@ if __name__ == "__main__":
     # Update checksum for this block
     checksum[block_number] = calculateChecksum(block_number)
     # print("Just calculated: Checksum for block", block_number, "is", checksum[block_number])
+    print('Put block', block_number, 'with data', data, 'with checksum', checksum[block_number])
 
     # If corrupt block enabled, corrupt the block
     if CBLK is not None and block_number == CBLK:

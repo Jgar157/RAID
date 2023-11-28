@@ -43,7 +43,7 @@ def ConfigureFSConstants(args):
         CID = args.client_id
     if args.port:
         PORT = args.port
-    if args.cache_debug:
+    if args.logcache:
         CACHE_DEBUG = args.logcache
     
     # These are constants that SHOULD NEVER BE MODIFIED
