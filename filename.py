@@ -97,6 +97,7 @@ class FileName():
             # Data block block_number is free
             if byte_bitmap == 0:
                 # Mark it as used in bitmap
+                print('bitmap_block: ' + str(bitmap_block) + ', block_number: ' + str(block_number) + ', block: ' + str(block))
                 block[block_number % fsconfig.BLOCK_SIZE] = 1
                 # Write it back to the free bitmap in raw storage
                 self.RawBlocks.Put(bitmap_block, block)

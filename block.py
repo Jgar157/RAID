@@ -70,11 +70,6 @@ class DiskBlocks():
                 print("SERVER_TIMED_OUT SinglePut", server, block_number)
                 ret = -1
 
-            # update block cache
-            if fsconfig.CACHE_DEBUG:
-                print('CACHE_WRITE_THROUGH ' + str(block_number))
-
-            self.blockcache[block_number] = putdata
             # flag this is the last writer
             # unless this is a release - which doesn't flag last writer
             if block_number != fsconfig.TOTAL_NUM_BLOCKS-1:
@@ -112,28 +107,17 @@ class DiskBlocks():
             # return self.block[block_number]
             # call Get() method on the server
             # don't look up cache for last two blocks
-            if (block_number < fsconfig.TOTAL_NUM_BLOCKS-2) and (block_number in self.blockcache):
 
-                if fsconfig.CACHE_DEBUG:
-                    print('CACHE_HIT '+ str(block_number))
-
-                data = self.blockcache[block_number]
-
-            else:
-
-                if fsconfig.CACHE_DEBUG:
-                    print('CACHE_MISS ' + str(block_number))
-
-                try:
-                    data = server.Get(block_number)
-                except:
-                    print("SERVER_TIMED_OUT SingleGet")
-                    print("SERVER_DISCONNECTED Get " + str(block_number))
-                    return -1
-                
-                # Only update cache if not corrupt or bad output
-                if data != "CORRUPT" and data != -1:
-                    self.blockcache[block_number] = data
+            try:
+                data = server.Get(block_number)
+            except:
+                print("SERVER_TIMED_OUT SingleGet")
+                print("SERVER_DISCONNECTED Get " + str(block_number))
+                return -1
+            
+            # Only update cache if not corrupt or bad output
+            if data != "CORRUPT" and data != -1:
+                self.blockcache[block_number] = data
 
             if data == "CORRUPT":
                 return "CORRUPT"
@@ -146,6 +130,13 @@ class DiskBlocks():
     # Raid-4 version
     def Put(self, block_number, block_data):
         target_server, virtual_block_number = self.SelectServer(block_number)
+
+        # update block cache here due to having the real block number
+        if fsconfig.CACHE_DEBUG:
+            print('CACHE_WRITE_THROUGH ' + str(block_number))
+
+        putdata = bytearray(block_data.ljust(fsconfig.BLOCK_SIZE, b'\x00'))
+        self.blockcache[block_number] = putdata
 
         # Put onto target server and parity server
         res = self.SinglePut(target_server, virtual_block_number, block_data)
@@ -167,14 +158,26 @@ class DiskBlocks():
         server_read = -1
         data = -1
 
-        # Only read from the target server
-        try:
-            data = self.SingleGet(target_server, virtual_block_number)
-            server_read = target_server
+        if (block_number < fsconfig.TOTAL_NUM_BLOCKS-2) and (block_number in self.blockcache) and block_number != fsconfig.FREEBITMAP_BLOCK_OFFSET:
 
-        except:
-            print("SERVER_TIMED_OUT Get")
-            print("SERVER_DISCONNECTED Get " + str(block_number))
+            if fsconfig.CACHE_DEBUG:
+                print('CACHE_HIT '+ str(block_number))
+
+            data = self.blockcache[block_number]
+
+        else: # Cache miss or last two blocks
+
+            if fsconfig.CACHE_DEBUG:
+                print('CACHE_MISS ' + str(block_number))
+
+            # Only read from the target server
+            try:
+                data = self.SingleGet(target_server, virtual_block_number)
+                server_read = target_server
+
+            except:
+                print("SERVER_TIMED_OUT Get")
+                print("SERVER_DISCONNECTED Get " + str(block_number))
             
            
         # Recover from parity and other servers XOR
