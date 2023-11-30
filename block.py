@@ -114,10 +114,6 @@ class DiskBlocks():
                 print("SERVER_TIMED_OUT SingleGet")
                 print("SERVER_DISCONNECTED Get " + str(block_number))
                 return -1
-            
-            # Only update cache if not corrupt or bad output
-            if data != "CORRUPT" and data != -1:
-                self.blockcache[block_number] = data
 
             if data == "CORRUPT":
                 return "CORRUPT"
@@ -136,7 +132,6 @@ class DiskBlocks():
             print('CACHE_WRITE_THROUGH ' + str(block_number))
 
         putdata = bytearray(block_data.ljust(fsconfig.BLOCK_SIZE, b'\x00'))
-        self.blockcache[block_number] = putdata
 
         # Update the parity server, always even if a server fails
         try:
@@ -151,6 +146,7 @@ class DiskBlocks():
         # Put onto target server and parity server
         # Only put after parity is updated
         res = self.SinglePut(target_server, virtual_block_number, putdata)
+        self.blockcache[block_number] = putdata
         
         return 0 # Only 1 server ever fails, so this always succeeds
         
@@ -161,10 +157,10 @@ class DiskBlocks():
         server_read = -1
         data = -1
 
-        if (block_number < fsconfig.TOTAL_NUM_BLOCKS-2) and (block_number in self.blockcache) and block_number <= fsconfig.INODE_BLOCK_OFFSET:
-
+        if (block_number < fsconfig.TOTAL_NUM_BLOCKS-2) and (block_number in self.blockcache): 
+            
             if fsconfig.CACHE_DEBUG:
-                print('CACHE_HIT '+ str(block_number))
+                print('CACHE_HIT '+ str(block_number) + ' ' + str())
 
             data = self.blockcache[block_number]
 
@@ -193,6 +189,11 @@ class DiskBlocks():
             data = self.Recover(target_server, virtual_block_number)
             # print("Recovered Data", data)
 
+        # This resolves the caching issue by using the correct block number
+        # and not the virtual block number which was destroying
+        # the cache and causing the ls to display the wrong type
+        if data != "CORRUPT" and data != -1:
+            self.blockcache[block_number] = data
 
         else:
             # print('Success reading block ' + str(block_number) + ' from server ' + str(server_read))
@@ -212,14 +213,29 @@ class DiskBlocks():
     
     def CalculateParity(self, block_number, target_server, block_data):
         # Get the block from every server except the parity server
-        # print('Calculating parity for block ' + str(block_number))
+        # print('\nCalculating parity for block ' + str(block_number))
+        #parity_data = self.parity_server.Get(block_number)
         parity_data = bytearray(fsconfig.BLOCK_SIZE)
         # print('parity_data: ' + str(parity_data))
 
         parity_data_int = int.from_bytes(parity_data, byteorder='big')
 
-        print('\nBlock Number: ' + str(block_number))
-        print('parity_data_int: ' + parity_data_int.to_bytes(len(parity_data), byteorder='big').decode('utf-8'))
+        # print('parity_data_int: ' + parity_data_int.to_bytes(len(parity_data), byteorder='big').decode('utf-8'))
+
+        # Get the old data from target_server
+        # old_data = self.SingleGet(target_server, block_number)
+
+        # if old_data == "CORRUPT":
+        #     old_data = self.Recover(target_server, block_number)
+
+        # print('old_data: ' + str(old_data))
+        # old_data_int = int.from_bytes(old_data, byteorder='big')
+
+        # new_data_int = int.from_bytes(block_data, byteorder='big')
+        # print('new_data: ' + str(block_data))
+        # print('new_data_int: ' + new_data_int.to_bytes(len(block_data), byteorder='big').decode('utf-8'))
+
+        # parity_data_int ^= old_data_int ^ new_data_int
         for server in self.servers:
             if server != target_server:
                 data = self.SingleGet(server, block_number)
@@ -228,19 +244,19 @@ class DiskBlocks():
                 if data == "CORRUPT":
                     data = self.Recover(server, block_number)
 
-                print('data_int:', data.decode('utf-8'), 'Server:', server)
+                # print('data_int:', data.decode('utf-8'), 'Server:', server)
                 data_int = int.from_bytes(data, byteorder='big')
                 parity_data_int ^= data_int
 
             else: # XOR with the new data coming into the server
-                print('data_int:', block_data.decode('utf-8'), 'Server:', server)
+                # print('data_int:', block_data.decode('utf-8'), 'Server:', server)
                 data_int = int.from_bytes(block_data, byteorder='big')
                 parity_data_int ^= data_int
             
             # print('data_int: ' + str(data_int))
-            print('parity_data_int: ' + parity_data_int.to_bytes(len(parity_data), byteorder='big').decode('utf-8'))
+            # print('parity_data_int: ' + parity_data_int.to_bytes(len(parity_data), byteorder='big').decode('utf-8'))
 
-        parity_data = parity_data_int.to_bytes(len(data), byteorder='big')
+        parity_data = parity_data_int.to_bytes(len(block_data), byteorder='big')
         return parity_data
 
 ## Recover: recovers a block from parity and other servers XOR
@@ -277,7 +293,7 @@ class DiskBlocks():
                 
         recovered_data = recovered_data_int.to_bytes(len(data), byteorder='big')
         # recovered_data = recovered_data_int
-        # print('Recovered data: ' + str(recovered_data))
+        print('Recovered data: ' + str(recovered_data))
         # Recovered data is the XOR of all data
 
         recovered_data_str = recovered_data.decode('utf-8')
