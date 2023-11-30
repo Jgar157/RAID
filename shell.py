@@ -255,17 +255,18 @@ class FSShell():
 
     # implements hard link
     def lnh(self, target, name):
-        i, errorcode = self.AbsolutePathObject.Link(target, name, self.cwd)
+        print("lnh: target: " + target + ", name: " + name)
+        i = self.AbsolutePathObject.Link(target, name, self.cwd)
         if i == -1:
-            print("Error: " + errorcode)
+            # print("Error: " + errorcode)
             return -1
         return 0
 
     # implements soft link
     def lns(self, target, name):
-        i, errorcode = self.AbsolutePathObject.Symlink(target, name, self.cwd)
+        i = self.AbsolutePathObject.Symlink(target, name, self.cwd)
         if i == -1:
-            print("Error: " + errorcode)
+            # print("Error: " + errorcode)
             return -1
         return 0
 

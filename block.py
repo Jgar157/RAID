@@ -140,7 +140,7 @@ class DiskBlocks():
 
         # Update the parity server, always even if a server fails
         try:
-            new_parity = self.CalculateParity(virtual_block_number, target_server, block_data)
+            new_parity = self.CalculateParity(virtual_block_number, target_server, putdata)
             self.parity_server.Put(virtual_block_number, new_parity)
         except Exception as e:
             e.with_traceback()
@@ -150,7 +150,7 @@ class DiskBlocks():
         
         # Put onto target server and parity server
         # Only put after parity is updated
-        res = self.SinglePut(target_server, virtual_block_number, block_data)
+        res = self.SinglePut(target_server, virtual_block_number, putdata)
         
         return 0 # Only 1 server ever fails, so this always succeeds
         
@@ -281,7 +281,7 @@ class DiskBlocks():
         # Recovered data is the XOR of all data
 
         recovered_data_str = recovered_data.decode('utf-8')
-        # print('Recovered data: ' + recovered_data_str)
+        print('Recovered data: ' + recovered_data_str)
         return recovered_data
 
 ## RSM: read and set memory equivalent
