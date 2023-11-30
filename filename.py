@@ -97,7 +97,6 @@ class FileName():
             # Data block block_number is free
             if byte_bitmap == 0:
                 # Mark it as used in bitmap
-                print('bitmap_block: ' + str(bitmap_block) + ', block_number: ' + str(block_number) + ', block: ' + str(block))
                 block[block_number % fsconfig.BLOCK_SIZE] = 1
                 # Write it back to the free bitmap in raw storage
                 self.RawBlocks.Put(bitmap_block, block)
@@ -151,6 +150,7 @@ class FileName():
         # Retrieve the full data block where the new (filename,inodenumber) will be stored
         block_number = insert_to.inode.block_numbers[block_number_index]
         block = self.RawBlocks.Get(block_number)
+        # print('FileName::InsertFilenameInodeNumber: block_number ' + str(block_number) + ', block ' + str(block.hex()))
 
         # Compute modulo of index to locate within this data block where the new entry should be added
         index_modulo = index % fsconfig.BLOCK_SIZE

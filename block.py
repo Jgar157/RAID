@@ -138,16 +138,19 @@ class DiskBlocks():
         putdata = bytearray(block_data.ljust(fsconfig.BLOCK_SIZE, b'\x00'))
         self.blockcache[block_number] = putdata
 
-        # Put onto target server and parity server
-        res = self.SinglePut(target_server, virtual_block_number, block_data)
-
         # Update the parity server, always even if a server fails
         try:
-            self.parity_server.Put(virtual_block_number, block_data)
-        except:
+            new_parity = self.CalculateParity(virtual_block_number, target_server, block_data)
+            self.parity_server.Put(virtual_block_number, new_parity)
+        except Exception as e:
+            e.with_traceback()
             print("SERVER_TIMED_OUT Put")
             print("SERVER_DISCONNECTED Put " + str(block_number))
             return -1
+        
+        # Put onto target server and parity server
+        # Only put after parity is updated
+        res = self.SinglePut(target_server, virtual_block_number, block_data)
         
         return 0 # Only 1 server ever fails, so this always succeeds
         
@@ -158,7 +161,7 @@ class DiskBlocks():
         server_read = -1
         data = -1
 
-        if (block_number < fsconfig.TOTAL_NUM_BLOCKS-2) and (block_number in self.blockcache) and block_number != fsconfig.FREEBITMAP_BLOCK_OFFSET:
+        if (block_number < fsconfig.TOTAL_NUM_BLOCKS-2) and (block_number in self.blockcache) and block_number <= fsconfig.INODE_BLOCK_OFFSET:
 
             if fsconfig.CACHE_DEBUG:
                 print('CACHE_HIT '+ str(block_number))
@@ -187,13 +190,15 @@ class DiskBlocks():
             print("Recovering block " + str(block_number) + " from following servers")
 
             # Recover from parity
-            data = self.Recover(target_server, block_number)
+            data = self.Recover(target_server, virtual_block_number)
+            # print("Recovered Data", data)
+
 
         else:
             # print('Success reading block ' + str(block_number) + ' from server ' + str(server_read))
             pass
 
-        return data
+        return bytearray(data)
     
     def SelectServer(self, block_number):
         # Calculate the target server index and select the server
@@ -202,23 +207,82 @@ class DiskBlocks():
 
         # Calculate the virtual block number
         virtual_block_number = block_number // self.num_servers
-        print(f'\nSelected server {target_server} for block {block_number} (virtual block {virtual_block_number})')
+        # print(f'Selected server {target_server} for block {block_number} (virtual block {virtual_block_number})')
         return target_server, virtual_block_number
+    
+    def CalculateParity(self, block_number, target_server, block_data):
+        # Get the block from every server except the parity server
+        # print('Calculating parity for block ' + str(block_number))
+        parity_data = bytearray(fsconfig.BLOCK_SIZE)
+        # print('parity_data: ' + str(parity_data))
+
+        parity_data_int = int.from_bytes(parity_data, byteorder='big')
+
+        print('\nBlock Number: ' + str(block_number))
+        print('parity_data_int: ' + parity_data_int.to_bytes(len(parity_data), byteorder='big').decode('utf-8'))
+        for server in self.servers:
+            if server != target_server:
+                data = self.SingleGet(server, block_number)
+                # print('data: ' + str(data))
+
+                if data == "CORRUPT":
+                    data = self.Recover(server, block_number)
+
+                print('data_int:', data.decode('utf-8'), 'Server:', server)
+                data_int = int.from_bytes(data, byteorder='big')
+                parity_data_int ^= data_int
+
+            else: # XOR with the new data coming into the server
+                print('data_int:', block_data.decode('utf-8'), 'Server:', server)
+                data_int = int.from_bytes(block_data, byteorder='big')
+                parity_data_int ^= data_int
+            
+            # print('data_int: ' + str(data_int))
+            print('parity_data_int: ' + parity_data_int.to_bytes(len(parity_data), byteorder='big').decode('utf-8'))
+
+        parity_data = parity_data_int.to_bytes(len(data), byteorder='big')
+        return parity_data
 
 ## Recover: recovers a block from parity and other servers XOR
 ## Either on crash or corrupt
 
     def Recover(self, failed_server, block_number):
         # Recover from parity
-        parity_data = self.SingleGet(self.parity_server, block_number)
+        print('Recovering block ' + str(block_number) + ' from parity server ' + str(self.parity_server))
+        # Get the virtual block number
 
+        parity_data = self.parity_server.Get(block_number)
+        # print('Failed server: ' + str(failed_server), 'parity data: ' + str(parity_data))
+
+        parity_data_str = parity_data.decode('utf-8')
+        print('parity_data: ' + parity_data_str)
+
+        parity_data_int = int.from_bytes(parity_data, byteorder='big')
+        recovered_data_int = parity_data_int
+        # recovered_data_int = parity_data
+       
         for server in self.servers:
             if server != failed_server:
                 data = self.SingleGet(server, block_number)
-                parity_data ^= (parity_data, data)
 
+                # print('parity_data: ' + str(parity_data))
+
+                data_int = int.from_bytes(data, byteorder='big')
+                data_str = data.decode('utf-8')
+                # print(str(server) + 'data_int: ' + data_str)
+
+                # print('data_int: ' + str(data))
+                recovered_data_int ^= data_int
+                
+                
+        recovered_data = recovered_data_int.to_bytes(len(data), byteorder='big')
+        # recovered_data = recovered_data_int
+        # print('Recovered data: ' + str(recovered_data))
         # Recovered data is the XOR of all data
-        return parity_data
+
+        recovered_data_str = recovered_data.decode('utf-8')
+        # print('Recovered data: ' + recovered_data_str)
+        return recovered_data
 
 ## RSM: read and set memory equivalent
     def RSM(self, block_number):
@@ -323,5 +387,5 @@ class DiskBlocks():
 
     def PrintBlocks(self,tag,min,max):
         print ('#### Raw disk blocks: ' + tag)
-        for i in range(min,max):
+        for pi in range(min,max):
             print ('Block [' + str(i) + '] : ' + str((self.Get(i)).hex()))
