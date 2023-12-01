@@ -270,6 +270,21 @@ class FSShell():
             return -1
         return 0
 
+    # implements repair
+    def repair(self, server_id):
+        try:
+            server_id = int(server_id)
+        except ValueError:
+            print('Error: ' + server_id + ' not a valid Integer')
+            return -1
+        if server_id < 0 or server_id >= self.RawBlocks.num_servers + self.RawBlocks.starting_port:
+            print('Error: server_id ' + str(server_id) + ' not in valid range [0, ' + str(fsconfig.TOTAL_NUM_SERVERS - 1) + ']')
+            return -1
+        
+        self.RawBlocks.Repair(server_id)
+                
+        return 0
+
     ## Main interpreter loop
     def Interpreter(self):
         while (True):
@@ -380,6 +395,13 @@ class FSShell():
                 else:
                     self.RawBlocks.Acquire()
                     self.lns(splitcmd[1], splitcmd[2])
+                    self.RawBlocks.Release()
+            elif splitcmd[0] == "repair":
+                if len(splitcmd) != 2:
+                    print("Error: repair requires one arguments")
+                else:
+                    self.RawBlocks.Acquire()
+                    self.repair(splitcmd[1])
                     self.RawBlocks.Release()
             elif splitcmd[0] == "exit":
                 return

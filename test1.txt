@@ -1,0 +1,35 @@
+mkdir a
+mkdir b
+mkdir c
+ls
+create f1
+append f1 jairogarciga
+mirror f1
+cat f1
+mirror f1
+append f1 rachelbass
+cat f1
+rm f1
+mkdir folder
+cd folder
+ls
+mkdir one
+cd one
+mkdir two
+cd two
+mkdir three
+cd three
+ls
+cd ..
+ls
+cd ..
+create deepfile
+append deepfile thisisadeepfile
+lnh deepfile deepfilecopy
+lns deepfile deepcopy2
+ls
+cd ..
+ls
+cd ..
+
+exit

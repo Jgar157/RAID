@@ -23,3 +23,17 @@ python3 fsmain.py -bs 256 -nb 256 -is 32 -ni 32 -port 8000 -cid 2 -startport 800
 ## No cache debug
 python3 fsmain.py -bs 256 -nb 256 -is 32 -ni 32 -port 8000 -cid 1 -startport 8000 -ns 2
 python3 fsmain.py -bs 256 -nb 256 -is 32 -ni 32 -port 8000 -cid 2 -startport 8000 -ns 2
+
+# 8 Servers Test
+## Client for 8 Servers, nb = 256*7 (one servers worth is used for parity)
+python3 fsmain.py -bs 256 -nb 1792 -is 32 -ni 32 -port 8000 -cid 1 -startport 8000 -ns 2 -logcache
+
+## 8 Servers
+python3 blockserver.py -nb 256 -bs 256 -port 8000
+python3 blockserver.py -nb 256 -bs 256 -port 8001
+python3 blockserver.py -nb 256 -bs 256 -port 8002
+python3 blockserver.py -nb 256 -bs 256 -port 8003
+python3 blockserver.py -nb 256 -bs 256 -port 8004
+python3 blockserver.py -nb 256 -bs 256 -port 8005
+python3 blockserver.py -nb 256 -bs 256 -port 8006
+python3 blockserver.py -nb 256 -bs 256 -port 8007
