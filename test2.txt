@@ -1,0 +1,16 @@
+mkdir d
+cd d
+create a
+ls
+append a thenumbeone
+cat a
+lns a b
+cat b
+append b thenumber2
+cat b
+mirror b
+cat a
+rm a
+cd ..
+create ending
+exit

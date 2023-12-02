@@ -1,6 +1,7 @@
 import pickle, logging
 import fsconfig
 import xmlrpc.client, socket, time
+import traceback
 
 #### BLOCK LAYER
 
@@ -29,7 +30,8 @@ class DiskBlocks():
             server_url = 'http://' + fsconfig.SERVER_ADDRESS + ':' + str(startingPort + server)
             self.servers.append(xmlrpc.client.ServerProxy(server_url, use_builtin_types=True))
 
-        print('Connected to servers: ' + str(self.servers))
+        # print('Connected to servers: ' + str(self.servers)) 
+        # print('RSM server', str(startingPort))
 
         socket.setdefaulttimeout(fsconfig.SOCKET_TIMEOUT)
         self.num_servers = numServers
@@ -37,13 +39,6 @@ class DiskBlocks():
 
         # initialize block cache empty
         self.blockcache = {}
-
-        # parity server is always last server
-        # self.parity_server = self.servers[-1]
-        self.last_writer_server = self.servers[0]
-        # servers should not include parity
-        # servers = self.servers[:-1]
-        self.num_servers = numServers
 
 
     ## Put: interface to write a raw block of data to the block indexed by block number
@@ -68,7 +63,7 @@ class DiskBlocks():
             try:
                 ret = server.Put(block_number, putdata)
             except:
-                print("SERVER_TIMED_OUT SinglePut", server, block_number)
+                print("SERVER_TIMED_OUT ", block_number)
                 ret = -1
 
             # flag this is the last writer
@@ -81,13 +76,13 @@ class DiskBlocks():
                 try:
                     LAST_WRITER_SERVER.Put(VIRTUAL_BLOCK, updated_block)
                 except:
-                    print("SERVER_TIMED_OUT 2!!")
+                    print("SERVER_TIMED_OUT")
                     # SERVER_DISCONNECTED operation block_number
-                    print("SERVER_DISCONNECTED Put " + str(VIRTUAL_BLOCK))
+                    print("SERVER_DISCONNECTED " + str(VIRTUAL_BLOCK))
                     ret = -1
 
             if ret == -1:
-                logging.error('Put: Server returns error')
+                # logging.error('Put: Server returns error')
                 return -1
             
             return 0
@@ -102,7 +97,8 @@ class DiskBlocks():
     def SingleGet(self, server, block_number):
 
         logging.debug('Get: ' + str(block_number))
-        if block_number in range(0, fsconfig.TOTAL_NUM_BLOCKS):
+        block_cap = fsconfig.TOTAL_NUM_BLOCKS // (self.num_servers - 1) + 1
+        if block_number in range(0, block_cap):
             # logging.debug ('\n' + str((self.block[block_number]).hex()))
             # commenting this out as the request now goes to the server
             # return self.block[block_number]
@@ -110,10 +106,13 @@ class DiskBlocks():
             # don't look up cache for last two blocks
 
             try:
+                # print("Getting block", block_number, "from server", server)
                 data = server.Get(block_number)
-            except:
-                print("SERVER_TIMED_OUT SingleGet")
-                print("SERVER_DISCONNECTED Get " + str(block_number))
+            except Exception as e:
+                # e.traceback()
+                print("SERVER_TIMED_OUT")
+                print("SERVER_DISCONNECTED " + str(block_number))
+                # print("server ", server)
                 return -1
 
             if data == "CORRUPT":
@@ -121,12 +120,11 @@ class DiskBlocks():
             
             return bytearray(data)
 
-        logging.error('DiskBlocks::Get: Block number larger than TOTAL_NUM_BLOCKS: ' + str(block_number))
+        logging.error('DiskBlocks::Get: Block number larger than TOTAL_NUM_BLOCKS: ' + str(block_cap))
         quit()
 
     # Raid-4 version
     def Put(self, block_number, block_data):
-        parity_server = self.GetParityServer(block_number)
         target_server, virtual_block_number = self.SelectServer(block_number)
 
         # update block cache here due to having the real block number
@@ -140,9 +138,7 @@ class DiskBlocks():
             new_parity = self.UpdateParity(block_number, virtual_block_number, target_server, putdata)
         except Exception as e:
             print("SERVER_TIMED_OUT")
-            print("SERVER_DISCONNECTED " + str(block_number))
-
-            # Recover due to parity, don't crash or exit
+            print("SERVER_DISCONNECTED Put " + str(block_number))
         
         # Put onto target server and parity server
         # Only put after parity is updated
@@ -161,7 +157,7 @@ class DiskBlocks():
         if (block_number < fsconfig.TOTAL_NUM_BLOCKS-2) and (block_number in self.blockcache): 
             
             if fsconfig.CACHE_DEBUG:
-                print('CACHE_HIT '+ str(block_number) + ' ' + str())
+                print('CACHE_HIT '+ str(block_number) + ' ')
 
             data = self.blockcache[block_number]
 
@@ -177,16 +173,17 @@ class DiskBlocks():
 
             except:
                 print("SERVER_TIMED_OUT")
-                print("SERVER_DISCONNECTED" + str(block_number))
+                print("SERVER_DISCONNECTED Get " + str(block_number))
             
            
         # Recover from parity and other servers XOR
         # Either on crash or corrupt ^^^
         if data == "CORRUPT" or data == -1:
-            print("Server " + str(server_read) + " returned corrupt block " + str(block_number))
-            print("Recovering block " + str(block_number) + " from following servers")
+            # print("Recovering block " + str(block_number) + " from following servers")
 
             # Recover from parity
+            if data == "CORRUPT":
+                print("CORRUPT " + str(block_number))
             data = self.Recover(target_server, block_number, virtual_block_number)
             # print("Recovered Data", data)
 
@@ -203,26 +200,27 @@ class DiskBlocks():
         return bytearray(data)
     
     def SelectServer(self, block_number):
-        # Calculate the target server index and select the server
-        target_server_index = block_number % self.num_servers
+        parity_server_index = self.GetParityServerIndex(block_number)
+        target_server_index = block_number % (self.num_servers - 1)
+
+
+        if target_server_index >= parity_server_index:
+            target_server_index += 1
+
+        # Get the virutal block number
+        virtual_block_number = block_number // (self.num_servers - 1)
+
+        # target server is the server that holds the block
         target_server = self.servers[target_server_index]
 
-        # Calculate the virtual block number
-        virtual_block_number = block_number // self.num_servers
-        # print(f'Selected server {target_server} for block {block_number} (virtual block {virtual_block_number})')
         return target_server, virtual_block_number
-    
+        
     def UpdateParity(self, original_block_number, virtual_block_number, target_server, block_data):
         # Get the block from every server except the parity server
-        # print('\nCalculating parity for block ' + str(block_number))
 
         parity_server = self.GetParityServer(original_block_number)
         parity_data = self.SingleGet(parity_server, virtual_block_number)
 
-        # print("SERVER_TIMED_OUT")
-        # parity_data = bytearray(fsconfig.BLOCK_SIZE)
-        # print('parity_data: ' + str(parity_data))
-        
         # If parity data is corrupt, we can't write to it so just drop action
         if parity_data == "CORRUPT" or parity_data == -1:
             print("SERVER_TIMED_OUT")
@@ -230,8 +228,6 @@ class DiskBlocks():
             return -1
 
         parity_data_int = int.from_bytes(parity_data, byteorder='big')
-
-        # print('parity_data_int: ' + parity_data_int.to_bytes(len(parity_data), byteorder='big').decode('utf-8'))
 
         # Get the old data from target_server
         old_data = self.SingleGet(target_server, virtual_block_number)
@@ -243,17 +239,17 @@ class DiskBlocks():
         old_data_int = int.from_bytes(old_data, byteorder='big')
         new_data_int = int.from_bytes(block_data, byteorder='big')
 
-        # ('new_data: ' + str(block_data))
-        # print('new_data_int: ' + new_data_int.to_bytes(len(block_data), byteorder='big').decode('utf-8'))
-
         parity_data_int ^= old_data_int ^ new_data_int
         parity_data = parity_data_int.to_bytes(len(block_data), byteorder='big')
     
 ## Get the Parity Server based on the current block number
 ## block number must be the original block number, not the virtual block number
+    def GetParityServerIndex(self, block_number):
+        return block_number // (self.num_servers - 1) % self.num_servers
+    
     def GetParityServer(self, block_number):
         # Calculate the parity server index and select the server
-        parity_server_index = (block_number + 1) % self.num_servers
+        parity_server_index = self.GetParityServerIndex(block_number)
         parity_server = self.servers[parity_server_index]
         return parity_server
 
@@ -271,18 +267,12 @@ class DiskBlocks():
         parity_data = bytearray(fsconfig.BLOCK_SIZE)
         parity_data_int = int.from_bytes(parity_data, byteorder='big')
         recovered_data_int = parity_data_int
-        print('Recovering due to failed server ' + str(failed_server))
+        # print('Recovering due to failed server ' + str(failed_server))
         for server in self.servers:
+
             if server != failed_server:
                 data = self.SingleGet(server, virtual_block_number)
-
-                # print('parity_data: ' + str(parity_data))
-
                 data_int = int.from_bytes(data, byteorder='big')
-                # data_str = data.decode('utf-8')
-                # print(str(server) + 'data_int: ' + data_str)
-
-                # print('data_int: ' + str(data))
                 recovered_data_int ^= data_int
                 
                 
@@ -291,8 +281,8 @@ class DiskBlocks():
 
         recovered_data_str = recovered_data.decode('utf-8')
 
-        print('Recovery from server ' + str(failed_server) + ' for block ' + str(original_block_number))
-        print('Recovered data: ' + recovered_data_str)
+        # print('Recovery from server ' + str(failed_server) + ' for block ' + str(original_block_number))
+        # print('Recovered data: ' + recovered_data_str)
         return recovered_data
     
 ## Repair: repairs entire server using parity
@@ -319,7 +309,6 @@ class DiskBlocks():
 
         print('Successfully repaired server ' + str(failed_server))
 
-
 ## RSM: read and set memory equivalent
     def RSM(self, block_number):
         logging.debug('RSM: ' + str(block_number))
@@ -338,7 +327,8 @@ class DiskBlocks():
 
     def Acquire(self):
         logging.debug('Acquire')
-        RSM_BLOCK = (fsconfig.TOTAL_NUM_BLOCKS // self.num_servers) - 1
+        RSM_BLOCK = (fsconfig.TOTAL_NUM_BLOCKS // (self.num_servers-1)) - 1
+
         lockvalue = self.RSM(RSM_BLOCK);
         logging.debug("RSM_BLOCK Lock value: " + str(lockvalue))
         while lockvalue[0] == 1:  # test just first byte of block to check if RSM_LOCKED
@@ -351,7 +341,7 @@ class DiskBlocks():
     # Raid-4 version, server 0
     def Release(self):
         logging.debug('Release')
-        RSM_BLOCK = (fsconfig.TOTAL_NUM_BLOCKS // self.num_servers) - 1
+        RSM_BLOCK = (fsconfig.TOTAL_NUM_BLOCKS // (self.num_servers-1)) - 1
         # Put()s a zero-filled block to release lock
 
         # Put onto rsm server
@@ -364,7 +354,10 @@ class DiskBlocks():
     def CheckAndInvalidateCache(self):
         LAST_WRITER_SERVER, VIRTUAL_BLOCK = self.SelectServer(fsconfig.TOTAL_NUM_BLOCKS-1)
 
+        #print('LAST_WRITER_SERVER', LAST_WRITER_SERVER, 'VIRTUAL_BLOCK', VIRTUAL_BLOCK)
+
         last_writer = self.SingleGet(LAST_WRITER_SERVER, VIRTUAL_BLOCK)
+        # print('Getting Last writer', last_writer)
 
         # if ID of last writer is not self, invalidate and update
         if  last_writer != -1 and last_writer[0] != fsconfig.CID:
@@ -375,12 +368,6 @@ class DiskBlocks():
             self.blockcache = {}
             updated_block = bytearray(fsconfig.BLOCK_SIZE)
             updated_block[0] = fsconfig.CID
-
-            # new_parity = self.UpdateParity(fsconfig.TOTAL_NUM_BLOCKS-1, VIRTUAL_BLOCK, LAST_WRITER_SERVER, updated_block)
-            
-            # # update parity
-            # parity_server = self.GetParityServer(fsconfig.TOTAL_NUM_BLOCKS-1)
-            # parity_server.Put(VIRTUAL_BLOCK, new_parity)
 
             # update parity
             self.UpdateParity(fsconfig.TOTAL_NUM_BLOCKS-1, VIRTUAL_BLOCK, LAST_WRITER_SERVER, updated_block)
@@ -394,12 +381,25 @@ class DiskBlocks():
             updated_block = bytearray(fsconfig.BLOCK_SIZE)
             updated_block[0] = fsconfig.CID
 
-            # new_parity = self.UpdateParity(fsconfig.TOTAL_NUM_BLOCKS-1, VIRTUAL_BLOCK, LAST_WRITER_SERVER, updated_block)
-            
-            # # update parity
-            # parity_server = self.GetParityServer(fsconfig.TOTAL_NUM_BLOCKS-1)
-            # parity_server.Put(VIRTUAL_BLOCK, new_parity)
             self.UpdateParity(fsconfig.TOTAL_NUM_BLOCKS-1, VIRTUAL_BLOCK, LAST_WRITER_SERVER, updated_block)
+
+## Invalidate
+# Normally, the cache is invalidated when the last writer is not the current client.
+# This is done in CheckAndInvalidateCache().
+# However, for testing purposes, we need to invalidate the cache
+# without changing the last writer so that we can test the corrupted blocks.
+    def Invalidate(self):
+        logging.debug('Invalidate')
+        self.blockcache = {}
+        return 0
+    
+## PrintMetrics
+# Prints the metrics of the block server to the screen
+# This is for testing purposes only, it should not be used outside of testing
+    def PrintServerMetrics(self):
+        for server in self.servers:
+            server.PrintMetrics()
+        return 0
             
     ## Serializes and saves the DiskBlocks block[] data structure to a "dump" file on your disk
 

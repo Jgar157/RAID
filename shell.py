@@ -12,6 +12,7 @@ from absolutepath import *
 
 class FSShell():
     def __init__(self, RawBlocks, FileOperationsObject, AbsolutePathObject: AbsolutePathName):
+
         # cwd stored the inode of the current working directory
         # we start in the root directory
         self.cwd = 0
@@ -403,7 +404,16 @@ class FSShell():
                     self.RawBlocks.Acquire()
                     self.repair(splitcmd[1])
                     self.RawBlocks.Release()
+            elif splitcmd[0] == "invalidate":
+                if len(splitcmd) != 1:
+                    print("Error: invalidate requires no arguments")
+                else:
+                    self.RawBlocks.Acquire()
+                    self.RawBlocks.Invalidate()
+                    self.RawBlocks.Release()
             elif splitcmd[0] == "exit":
+                # Have servers print their action counts for load
+                # self.RawBlocks.PrintServerMetrics()
                 return
             else:
                 print ("command " + splitcmd[0] + " not valid.\n")

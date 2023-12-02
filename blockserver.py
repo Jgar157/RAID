@@ -2,6 +2,7 @@ import pickle, logging
 import argparse
 import time
 import fsconfig
+import hashlib
 
 from xmlrpc.server import SimpleXMLRPCServer
 from xmlrpc.server import SimpleXMLRPCRequestHandler
@@ -21,6 +22,8 @@ class DiskBlocks():
     for i in range (0, total_num_blocks):
       putdata = bytearray(block_size)
       self.block.insert(i,putdata)
+
+    self.server_actions = 0
 
   def Sleep(self):
     self.counter += 1
@@ -85,7 +88,7 @@ if __name__ == "__main__":
     final_num = 0
     block = RawBlocks.block[block_number]
     for byte in block:
-      final_num ^= int(byte)
+        final_num ^= int(byte)
     return final_num
 
   def Get(block_number):
@@ -95,8 +98,11 @@ if __name__ == "__main__":
     # print("Checksum for block", block_number, "is", curr_checksum)
     # print("Checksum for block", block_number, "should be", checksum[block_number])
     print('Get block', block_number, 'with checksum', curr_checksum)
-    if curr_checksum != checksum[block_number]:
+    if curr_checksum != checksum[block_number] and checksum[block_number] != 0:
+      print(curr_checksum, checksum[block_number])
       return "CORRUPT"
+    
+    RawBlocks.server_actions += 1
     
     RawBlocks.Sleep()
     return result
@@ -116,6 +122,7 @@ if __name__ == "__main__":
       RawBlocks.block[block_number] = bytearray(b'\x01') * BLOCK_SIZE
       # print("Corrupting block", block_number, "with", RawBlocks.block[block_number])
 
+    RawBlocks.server_actions += 1
     return 0
 
   server.register_function(Put)
@@ -126,10 +133,20 @@ if __name__ == "__main__":
     result = RawBlocks.block[block_number]
     # RawBlocks.block[block_number] = RSM_LOCKED
     RawBlocks.block[block_number] = bytearray(RSM_LOCKED.ljust(BLOCK_SIZE,b'\x01'))
+
+    checksum[block_number] = calculateChecksum(block_number)
     RawBlocks.Sleep()
+
+    RawBlocks.server_actions += 1
     return result
 
   server.register_function(RSM)
+
+  def PrintMetrics():
+    print("Metrics: ", RawBlocks.server_actions)
+    return 0
+  
+  server.register_function(PrintMetrics)
 
   # Run the server's main loop
   logging.error("Running block server with nb=" + str(TOTAL_NUM_BLOCKS) + ", bs=" + str(BLOCK_SIZE) + " on port " + str(PORT))
